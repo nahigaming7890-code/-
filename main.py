@@ -17,12 +17,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def tts_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
-    
+
     if not text:
         return
 
-    if len(text) > 1000:
-        await update.message.reply_text("❌ লেখাটা অনেক বড়! ১০০০ অক্ষরের মধ্যে পাঠাও ভাই।")
+    if len(text) > 600:
+        await update.message.reply_text("❌ লেখাটা অনেক বড়! ৬০০ অক্ষরের মধ্যে পাঠাও ভাই।")
         return
 
     # টাইপিং দেখাবে
@@ -47,12 +47,29 @@ async def tts_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         print(f"Error: {e}")
         await update.message.reply_text("ভয়েস বানাতে সমস্যা হচ্ছে, আবার চেষ্টা করো।")
 
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    print(f"⚠️ Exception: {context.error}")
+
+
 if __name__ == "__main__":
-    if TOKEN == "YOUR_BOT_TOKEN_HERE":
-        print("❌ আগে TOKEN বসাও! BotFather থেকে টোকেন নিয়ে YOUR_BOT_TOKEN_HERE এর জায়গায় বসাও।")
+   def main():
+    if not TOKEN or TOKEN == "PUT_YOUR_NEW_BOT_TOKEN_HERE":
+        print(
+            "\n❌ BOT TOKEN পাওয়া যায়নি!\n"
+            "BOT_TOKEN environment variable সেট করো "
+            "অথবা TOKEN-এ নতুন token বসাও.\n")
     else:
         print("✅ Bot চলছে... টেলিগ্রামে গিয়ে মেসেজ দাও।")
         app = ApplicationBuilder().token(TOKEN).build()
         app.add_handler(CommandHandler("start", start))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, tts_handler))
-        app.run_polling()
+        app.add_error_handler(error_handler)
+
+        # ✅ Conflict fix:
+        # - drop_pending_updates=True : পুরনো pending update ফেলে দেবে
+        # - allowed_updates          : শুধু দরকারি update নেবে
+        app.run_polling(
+            drop_pending_updates=True,
+            allowed_updates=Update.ALL_TYPES
+        )
