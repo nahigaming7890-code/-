@@ -44,15 +44,18 @@ ENTRY_FILES_JS = ["index.js", "server.js", "bot.js", "app.js", "main.js"]
 ENTRY_FILES_PHP = ["index.php", "bot.php", "main.php", "run.php", "start.php"]
 
 # ============================================================
-# ADS / TIME CONFIG (defaults)
+# MONETAG / AD CONFIG — Defaults (used if DB is empty)
 # ============================================================
-ADS_PER_REWARD = 7
-SECONDS_PER_AD = 10
-REWARD_SECONDS = 2 * 3600
+DEFAULT_MONETAG_ZONE_ID = "12022485"
+DEFAULT_MONETAG_POSTBACK_SECRET = "myhost_secret_change_me_2026"
+DEFAULT_ADS_PER_REWARD = 7
+DEFAULT_SECONDS_PER_AD = 10
+DEFAULT_REWARD_SECONDS = 2 * 3600
 LOW_TIME_WARNING = 300
+SIGNUP_FREE_SECONDS = 600  # 10 min free for new users
 
 # ============================================================
-# IN-MEMORY RUNTIME STATE
+# RUNTIME STATE
 # ============================================================
 processes = {}
 proc_meta = {}
@@ -61,7 +64,7 @@ login_attempts = defaultdict(lambda: {"count": 0, "locked_until": 0})
 STATE_LOCK = threading.Lock()
 
 # ============================================================
-# DATABASE HELPERS
+# DATABASE
 # ============================================================
 def default_db():
     return {
@@ -78,11 +81,11 @@ def default_db():
             "sleep_after_hours": 4,
             "auto_wake_after_minutes": 20,
             "request_baseline_per_min": 30,
-            "ads_per_reward": ADS_PER_REWARD,
-            "seconds_per_ad": SECONDS_PER_AD,
-            "reward_seconds": REWARD_SECONDS,
-            "monetag_zone_id": "",
-            "monetag_postback_secret": "",
+            "ads_per_reward": DEFAULT_ADS_PER_REWARD,
+            "seconds_per_ad": DEFAULT_SECONDS_PER_AD,
+            "reward_seconds": DEFAULT_REWARD_SECONDS,
+            "monetag_zone_id": DEFAULT_MONETAG_ZONE_ID,
+            "monetag_postback_secret": DEFAULT_MONETAG_POSTBACK_SECRET,
         }
     }
 
@@ -120,6 +123,7 @@ def load_db():
             rec.setdefault("total_ads_watched", 0)
             rec.setdefault("total_time_earned", 0)
             rec.setdefault("last_time_tick", int(time.time() * 1000))
+            rec.setdefault("pending_ads", 0)
 
         migrated_users = {}
         for uname, val in data.get("users", {}).items():
@@ -133,7 +137,7 @@ def load_db():
                     "pw_hash": pw, "vip": False, "created": int(time.time() * 1000),
                     "time_balance": 0, "ads_watched_today": 0, "ads_in_current_cycle": 0,
                     "last_ad_day": "", "total_ads_watched": 0, "total_time_earned": 0,
-                    "last_time_tick": int(time.time() * 1000)
+                    "last_time_tick": int(time.time() * 1000), "pending_ads": 0
                 }
         data["users"] = migrated_users
         return data
@@ -149,7 +153,10 @@ def save_db(data):
         _write_db(data)
 
 def get_config(db, key):
-    return db.get("config", {}).get(key, default_db()["config"].get(key))
+    val = db.get("config", {}).get(key)
+    if val is None or val == "":
+        return default_db()["config"].get(key)
+    return val
 
 def get_user_concurrency_limit(db, email):
     user_rec = db.get("users", {}).get(email, {})
@@ -161,17 +168,14 @@ def today_str():
     return datetime.utcnow().strftime("%Y-%m-%d")
 
 # ============================================================
-# SECURITY HELPERS
+# SECURITY
 # ============================================================
 SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9_\-\.]+$")
 
 def is_safe_component(name):
-    if not name or name in (".", ".."):
-        return False
-    if "/" in name or "\\" in name:
-        return False
-    if not SAFE_NAME_RE.match(name):
-        return False
+    if not name or name in (".", ".."): return False
+    if "/" in name or "\\" in name: return False
+    if not SAFE_NAME_RE.match(name): return False
     return True
 
 def safe_join(base, *parts):
@@ -182,8 +186,7 @@ def safe_join(base, *parts):
     return target
 
 def is_locked_out(username):
-    rec = login_attempts[username]
-    return time.time() < rec["locked_until"]
+    return time.time() < login_attempts[username]["locked_until"]
 
 def register_failed_login(username):
     rec = login_attempts[username]
@@ -207,7 +210,7 @@ def generate_secret_token(nbytes=24):
     return os.urandom(nbytes).hex()
 
 # ============================================================
-# DEVICE FINGERPRINT POOL
+# DEVICE POOL
 # ============================================================
 DEVICE_POOL = [
     {"ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36", "platform": "Windows"},
@@ -228,7 +231,7 @@ def device_env_vars(device):
     return {"BOT_USER_AGENT": device["ua"], "BOT_DEVICE_PLATFORM": device["platform"]}
 
 # ============================================================
-# USER TIME / AD HELPERS
+# USER TIME HELPERS
 # ============================================================
 def ensure_user_time_fields(rec):
     rec.setdefault("time_balance", 0)
@@ -238,18 +241,13 @@ def ensure_user_time_fields(rec):
     rec.setdefault("total_ads_watched", 0)
     rec.setdefault("total_time_earned", 0)
     rec.setdefault("last_time_tick", int(time.time() * 1000))
+    rec.setdefault("pending_ads", 0)
 
 def reset_daily_ad_counter_if_needed(rec):
     today = today_str()
     if rec.get("last_ad_day") != today:
         rec["last_ad_day"] = today
         rec["ads_watched_today"] = 0
-
-def user_is_vip(db, user_key):
-    if user_key == ADMIN_INTERNAL_ID:
-        return True
-    rec = db.get("users", {}).get(user_key)
-    return bool(rec and rec.get("vip"))
 
 def user_email_from_key(user_key):
     db = load_db()
@@ -351,7 +349,7 @@ def validate_project(extract_dir):
     return {"ok": True, "entry": entry, "kind": kind}
 
 # ============================================================
-# SMART INSTALLERS
+# INSTALLERS
 # ============================================================
 def venv_path_for(user, app_name):
     return safe_join(VENV_FOLDER, f"{user}__{app_name}")
@@ -561,7 +559,6 @@ def start_app_process(user, name, db):
         append_log(log_path, f"[{datetime.now()}] START FAILED: {msg}\n")
         return {"ok": False, "error": msg}
 
-    # TIME GATE
     if user != ADMIN_INTERNAL_ID:
         email = user_email_from_key(user)
         if email:
@@ -569,7 +566,6 @@ def start_app_process(user, name, db):
             if not rec.get("vip") and rec.get("time_balance", 0) <= 0:
                 return {"ok": False, "error": "No hosting time left. Watch ads to earn more."}
 
-    # CONCURRENCY
     max_global = get_config(db, "max_concurrent_global")
     if user != ADMIN_INTERNAL_ID:
         email = user_email_from_key(user)
@@ -939,12 +935,16 @@ ADMIN_HTML = '''
             <input type="number" name="seconds_per_ad" value="{{ ads_config.seconds_per_ad }}">
             <label class="small-text">Reward seconds (per reward)</label>
             <input type="number" name="reward_seconds" value="{{ ads_config.reward_seconds }}">
-            <label class="small-text">Monetag Zone ID (for HTML SDK)</label>
-            <input type="text" name="monetag_zone_id" value="{{ ads_config.monetag_zone_id }}" placeholder="e.g. 1234567">
-            <label class="small-text">Monetag Postback Secret (server-side verification)</label>
+            <label class="small-text">Monetag Zone ID</label>
+            <input type="text" name="monetag_zone_id" value="{{ ads_config.monetag_zone_id }}" placeholder="e.g. 12022485">
+            <label class="small-text">Monetag Postback Secret</label>
             <input type="text" name="monetag_postback_secret" value="{{ ads_config.monetag_postback_secret }}" placeholder="your-secret">
             <button type="submit" class="btn btn-primary">Save Ads Config</button>
         </form>
+        <p class="small-text" style="margin-top:8px;">
+            Postback URL for Monetag:<br>
+            <code style="font-size:10px;word-break:break-all;">{{ postback_url }}</code>
+        </p>
     </div>
 
     <div class="card">
@@ -1010,6 +1010,7 @@ ADMIN_HTML = '''
                 Time: <span class="time-badge {% if u.time_balance < 300 %}low{% endif %}">{{ u.time_human }}</span>
                 | Ads today: {{ u.ads_watched_today }}
                 | Total ads: {{ u.total_ads_watched }}
+                | Pending: {{ u.pending_ads }}
             </div>
             <div class="action-row">
                 <a href="/admin/login_as/{{ u.email }}" class="btn btn-primary btn-small"><i class="fa-solid fa-sign-in"></i> Login as</a>
@@ -1180,10 +1181,11 @@ def login():
             db["users"][email] = {
                 "pw_hash": generate_password_hash(pw), "vip": False,
                 "created": int(time.time() * 1000),
-                "time_balance": 600,
+                "time_balance": SIGNUP_FREE_SECONDS,
                 "ads_watched_today": 0, "ads_in_current_cycle": 0,
                 "last_ad_day": "", "total_ads_watched": 0,
-                "total_time_earned": 600, "last_time_tick": int(time.time() * 1000)
+                "total_time_earned": SIGNUP_FREE_SECONDS, "last_time_tick": int(time.time() * 1000),
+                "pending_ads": 0
             }
             save_db(db)
             session['is_admin'], session['username'], session['user_folder'] = False, email, folder_id
@@ -1287,7 +1289,7 @@ def index():
             "remaining_wake_min": round(remaining_wake / 60, 1),
         })
     display_name = "Admin" if session.get('is_admin') else session.get('username', user_name)
-    monetag_zone = get_config(db, "monetag_zone_id") or ""
+    monetag_zone = get_config(db, "monetag_zone_id") or DEFAULT_MONETAG_ZONE_ID
     return render_template("index.html", apps=apps_list, username=display_name,
                            is_vip=is_vip, monetag_zone_id=monetag_zone)
 
@@ -1300,12 +1302,14 @@ def ads_status():
         return jsonify({"ok": False}), 401
     db = load_db()
     if session.get('is_admin'):
-        return jsonify({"ok": True, "is_vip": True, "time_balance": -1,
-                        "ads_watched_today": 0, "ads_in_current_cycle": 0,
-                        "total_ads_watched": 0,
-                        "ads_per_reward": get_config(db, "ads_per_reward"),
-                        "seconds_per_ad": get_config(db, "seconds_per_ad"),
-                        "reward_seconds": get_config(db, "reward_seconds")})
+        return jsonify({
+            "ok": True, "is_vip": True, "time_balance": -1,
+            "ads_watched_today": 0, "ads_in_current_cycle": 0,
+            "total_ads_watched": 0, "pending_ads": 0,
+            "ads_per_reward": get_config(db, "ads_per_reward"),
+            "seconds_per_ad": get_config(db, "seconds_per_ad"),
+            "reward_seconds": get_config(db, "reward_seconds"),
+        })
     email = session.get('username')
     rec = db["users"].get(email)
     if not rec:
@@ -1320,6 +1324,7 @@ def ads_status():
         "ads_watched_today": rec.get("ads_watched_today", 0),
         "ads_in_current_cycle": rec.get("ads_in_current_cycle", 0),
         "total_ads_watched": rec.get("total_ads_watched", 0),
+        "pending_ads": rec.get("pending_ads", 0),
         "ads_per_reward": get_config(db, "ads_per_reward"),
         "seconds_per_ad": get_config(db, "seconds_per_ad"),
         "reward_seconds": get_config(db, "reward_seconds"),
@@ -1380,12 +1385,13 @@ def ads_claim():
 @app.route("/monetag/postback")
 def monetag_postback():
     db = load_db()
-    cfg_secret = get_config(db, "monetag_postback_secret") or ""
+    cfg_secret = get_config(db, "monetag_postback_secret") or DEFAULT_MONETAG_POSTBACK_SECRET
     provided_secret = request.args.get("secret", "")
     if cfg_secret and provided_secret != cfg_secret:
         return "Invalid secret", 403
 
-    email = request.args.get("email", "").strip().lower()
+    # Monetag passes user_id, sub_id, click_id, etc. We accept several keys.
+    email = (request.args.get("email") or request.args.get("sub_id") or "").strip().lower()
     if not email or email not in db.get("users", {}):
         return "Unknown user", 404
 
@@ -1818,6 +1824,7 @@ def admin_panel():
             "time_human": human,
             "ads_watched_today": rec.get("ads_watched_today", 0),
             "total_ads_watched": rec.get("total_ads_watched", 0),
+            "pending_ads": rec.get("pending_ads", 0),
         })
         if rec.get("vip"):
             vip_count += 1
@@ -1827,13 +1834,21 @@ def admin_panel():
         "ads_per_reward": get_config(db, "ads_per_reward"),
         "seconds_per_ad": get_config(db, "seconds_per_ad"),
         "reward_seconds": get_config(db, "reward_seconds"),
-        "monetag_zone_id": get_config(db, "monetag_zone_id") or "",
-        "monetag_postback_secret": get_config(db, "monetag_postback_secret") or "",
+        "monetag_zone_id": get_config(db, "monetag_zone_id") or DEFAULT_MONETAG_ZONE_ID,
+        "monetag_postback_secret": get_config(db, "monetag_postback_secret") or DEFAULT_MONETAG_POSTBACK_SECRET,
     }
+
+    # Build postback URL suggestion
+    try:
+        base = request.url_root.rstrip("/")
+    except Exception:
+        base = ""
+    secret = ads_config["monetag_postback_secret"]
+    postback_url = f"{base}/monetag/postback?email={{email}}&secret={secret}"
 
     return render_template_string(ADMIN_HTML, users=users_list, vip_count=vip_count,
                                    config=db.get("config", default_db()["config"]),
-                                   ads_config=ads_config,
+                                   ads_config=ads_config, postback_url=postback_url,
                                    running_count=running_count, ram_percent=ram_percent,
                                    all_apps=all_apps, admin_apps=admin_apps)
 
