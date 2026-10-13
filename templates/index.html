@@ -1,10 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta name="monetag" content="a8946d4a338fc620677789dfc0dfc73a">
 <meta charset="utf-8">
 <title>MY HOST PANEL - Hosting Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<!-- ============================================================
+     MONETAG AD SDK — replace YOUR_ZONE_ID with your real zone ID
+     ============================================================ -->
+<script src="//libtl.com/sdk.js"
+        data-zone="{{ monetag_zone_id or 'YOUR_ZONE_ID' }}"
+        data-sdk="show_{{ monetag_zone_id or 'YOUR_ZONE_ID' }}"></script>
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
@@ -16,97 +23,68 @@
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body { background: radial-gradient(circle at 85% 0%, #e1f5e8 0, transparent 32%), var(--bg); color: var(--text); font-family: 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 18px; padding-bottom: 100px; min-height: 100vh; }
-  
-  /* ============ TOP BAR ============ */
+
+  /* TOP BAR */
   .user-bar { background: var(--surface); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-radius: 16px; margin-bottom: 18px; border: 1px solid var(--line); box-shadow: var(--shadow); }
   .user-bar b { color: var(--primary-dark); display: flex; align-items: center; gap: 8px; }
   .user-bar i { color: var(--primary); }
   .vip-badge { background: linear-gradient(135deg, #f0b429, #d99a1f); color: #fff; font-size: 10px; padding: 3px 8px; border-radius: 20px; font-weight: bold; letter-spacing: 0.5px; }
   .logout-btn { color: var(--danger); text-decoration: none; font-size: 18px; }
 
-  /* ============ TIME BALANCE CARD ============ */
-  .time-balance-card {
-    background: linear-gradient(135deg, #159957 0%, #0b713d 100%);
-    color: #fff; border-radius: 20px; padding: 22px; margin-bottom: 18px;
-    box-shadow: 0 15px 35px rgba(11, 113, 61, 0.25);
-    position: relative; overflow: hidden;
-  }
-  .time-balance-card::before {
-    content: ""; position: absolute; top: -50%; right: -20%; width: 300px; height: 300px;
-    background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
-    border-radius: 50%;
-  }
+  /* TIME BALANCE */
+  .time-balance-card { background: linear-gradient(135deg, #159957 0%, #0b713d 100%); color: #fff; border-radius: 20px; padding: 22px; margin-bottom: 18px; box-shadow: 0 15px 35px rgba(11, 113, 61, 0.25); position: relative; overflow: hidden; }
+  .time-balance-card::before { content: ""; position: absolute; top: -50%; right: -20%; width: 300px; height: 300px; background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%); border-radius: 50%; }
   .time-balance-card.low { background: linear-gradient(135deg, #d94f5d 0%, #a62e3b 100%); box-shadow: 0 15px 35px rgba(217, 79, 93, 0.25); }
   .time-balance-card .tb-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; position: relative; z-index: 1; }
   .time-balance-card .tb-label { font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 6px; }
   .time-balance-card .tb-time { font-size: 32px; font-weight: bold; letter-spacing: 1px; position: relative; z-index: 1; margin: 4px 0; font-variant-numeric: tabular-nums; }
   .time-balance-card .tb-sub { font-size: 12px; opacity: 0.85; position: relative; z-index: 1; }
 
-  /* ============ ADS SECTION ============ */
-  .ads-card {
-    background: var(--surface); border-radius: 20px; padding: 20px; margin-bottom: 18px;
-    border: 1px solid var(--line); box-shadow: var(--shadow);
-  }
+  /* ADS */
+  .ads-card { background: var(--surface); border-radius: 20px; padding: 20px; margin-bottom: 18px; border: 1px solid var(--line); box-shadow: var(--shadow); }
   .ads-card.vip-hidden { display: none; }
   .ads-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
   .ads-header h3 { margin: 0; font-size: 15px; color: var(--primary-dark); display: flex; align-items: center; gap: 8px; }
   .ads-progress { font-size: 12px; color: var(--muted); }
-  .ads-grid {
-    display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 14px;
-  }
-  .ad-slot {
-    aspect-ratio: 1; border-radius: 12px; background: var(--surface-soft); border: 2px dashed #b7dbc3;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    font-size: 10px; color: var(--muted); cursor: pointer; transition: all .2s;
-    position: relative;
-  }
+  .ads-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 14px; }
+  .ad-slot { aspect-ratio: 1; border-radius: 12px; background: var(--surface-soft); border: 2px dashed #b7dbc3; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; color: var(--muted); cursor: pointer; transition: all .2s; position: relative; }
   .ad-slot:hover { border-color: var(--primary); background: #e1f5e8; transform: translateY(-2px); }
   .ad-slot.completed { background: linear-gradient(135deg, #159957, #30b96d); border: 2px solid #159957; color: #fff; }
   .ad-slot.completed i { color: #fff; }
   .ad-slot i { font-size: 18px; color: var(--primary); margin-bottom: 4px; }
   .ad-slot .check-mark { position: absolute; top: 4px; right: 4px; font-size: 12px; color: #fff; display: none; }
   .ad-slot.completed .check-mark { display: block; }
-  .ads-cta {
-    width: 100%; padding: 14px; border-radius: 12px; border: none; cursor: pointer;
-    background: linear-gradient(135deg, #159957, #0b713d); color: #fff;
-    font-weight: bold; font-size: 14px; letter-spacing: 0.5px;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    transition: transform .15s, box-shadow .15s;
-  }
+  .ads-cta { width: 100%; padding: 14px; border-radius: 12px; border: none; cursor: pointer; background: linear-gradient(135deg, #159957, #0b713d); color: #fff; font-weight: bold; font-size: 14px; letter-spacing: 0.5px; display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform .15s, box-shadow .15s; }
   .ads-cta:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(11, 113, 61, 0.25); }
   .ads-cta:disabled { background: #b7c7bd; cursor: not-allowed; transform: none; box-shadow: none; }
   .ads-info { font-size: 11px; color: var(--muted); text-align: center; margin-top: 10px; }
 
-  /* ============ VIP CARD ============ */
-  .vip-card {
-    background: linear-gradient(135deg, #fff8e1, #ffe9b3);
-    border: 2px solid #f0b429; border-radius: 20px; padding: 18px;
-    margin-bottom: 18px; display: none;
-  }
+  /* VIP CARD */
+  .vip-card { background: linear-gradient(135deg, #fff8e1, #ffe9b3); border: 2px solid #f0b429; border-radius: 20px; padding: 18px; margin-bottom: 18px; display: none; }
   .vip-card.show { display: block; }
   .vip-card h3 { margin: 0 0 8px 0; color: #b47d0e; font-size: 15px; display: flex; align-items: center; gap: 8px; }
   .vip-card p { margin: 0; font-size: 12px; color: #8b6508; }
 
-  /* ============ DASHBOARD HEADING ============ */
+  /* DASHBOARD */
   .dashboard-heading { display:flex; justify-content:space-between; align-items:flex-end; gap:14px; margin: 6px 2px 16px; }
   .dashboard-heading h1 { margin:0; font-size: clamp(22px, 5vw, 28px); letter-spacing:-.5px; }
   .dashboard-heading p { margin:5px 0 0; color:var(--muted); font-size:13px; }
   .refresh-label { color:var(--muted); font-size:11px; text-align:right; margin-bottom:6px; }
 
-  /* ============ STATS ============ */
+  /* STATS */
   .stats-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:16px; }
   .stat-card { background:var(--surface); border:1px solid var(--line); border-radius:15px; padding:13px; box-shadow:var(--shadow); }
   .stat-card span { display:block; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.6px; }
   .stat-card strong { display:block; color:var(--primary-dark); font-size:24px; margin-top:3px; }
   .stat-card i { color:var(--primary); margin-right:5px; }
 
-  /* ============ UPLOAD ============ */
+  /* UPLOAD */
   .upload-card { background: var(--surface); border: 2px dashed #9bd4af; border-radius: 18px; padding: 22px 20px; text-align: center; margin-bottom: 18px; box-shadow:var(--shadow); }
   .upload-card i { font-size: 26px; color: var(--primary); }
   .upload-card p { margin: 8px 0; font-size: 13px; color: var(--muted); }
   #fileInput { display: none; }
 
-  /* ============ BUTTONS ============ */
+  /* BUTTONS */
   .btn { padding: 10px 16px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; color: #fff; transition: transform .15s, box-shadow .15s, background .15s; }
   .btn:hover { transform:translateY(-1px); box-shadow:0 5px 12px rgba(20,120,65,.15); }
   .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff; }
@@ -117,7 +95,7 @@
   #progressBar { height: 100%; width: 0%; background: linear-gradient(90deg,var(--primary),var(--accent)); transition: width .2s; }
   #deployStatus { font-size: 12px; margin-top: 8px; color:var(--primary-dark); min-height: 16px; }
 
-  /* ============ TOOLBAR ============ */
+  /* TOOLBAR */
   .toolbar { display:flex; gap:8px; align-items:center; margin-bottom:12px; }
   .search-wrap { flex:1; position:relative; }
   .search-wrap i { position:absolute; left:12px; top:11px; color:var(--muted); font-size:13px; }
@@ -125,7 +103,7 @@
   .filter-select { width:auto; min-width:120px; padding-left:11px; }
   .search-input:focus, .filter-select:focus { border-color:#76c992; box-shadow:0 0 0 3px #dff3e5; }
 
-  /* ============ APP CARDS ============ */
+  /* APP CARDS */
   .app-card { background: var(--surface); border-radius: 18px; padding: 15px; margin-bottom: 14px; border: 1px solid var(--line); box-shadow:var(--shadow); }
   .app-top { display: flex; justify-content: space-between; align-items: center; gap:10px; }
   .app-name { font-weight: bold; font-size: 15px; color: var(--primary-dark); word-break:break-word; }
@@ -145,7 +123,7 @@
   .action-grid a, .action-grid button { width: 100%; margin: 0; justify-content: center; }
   .action-grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 6px; }
 
-  /* ============ MODALS ============ */
+  /* MODALS */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(17,48,30,.52); backdrop-filter:blur(3px); z-index: 999; align-items: center; justify-content: center; padding: 15px; }
   .modal-box { background: var(--surface); color:var(--text); border-radius: 16px; padding: 18px; width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto; border: 1px solid var(--line); box-shadow:0 18px 50px rgba(15,55,30,.2); }
   .modal-box h3 { color: var(--primary-dark); margin-top: 0; font-size: 15px; }
@@ -158,31 +136,21 @@
   .validate-ok { background: #e8f8ed; border: 1px solid #73c795; color: #168b4f; }
   .validate-bad { background: #fff0f1; border: 1px solid #efabb2; color: #a62e3b; }
 
-  /* ============ AD WATCH MODAL ============ */
+  /* AD WATCH MODAL */
   #adWatchModal { background: rgba(0,0,0,.85); }
   #adWatchModal .modal-box { max-width: 520px; text-align: center; }
-  .ad-frame {
-    background: #112018; border-radius: 12px; padding: 40px 20px; margin: 15px 0;
-    min-height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    color: #9cf0b7; position: relative; overflow: hidden;
-  }
+  .ad-frame { background: #112018; border-radius: 12px; padding: 40px 20px; margin: 15px 0; min-height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9cf0b7; position: relative; overflow: hidden; }
   .ad-frame .ad-label { font-size: 11px; opacity: 0.5; margin-bottom: 15px; letter-spacing: 2px; }
   .ad-frame .ad-placeholder { font-size: 14px; opacity: 0.7; }
-  .ad-countdown {
-    position: absolute; top: 10px; right: 12px;
-    background: rgba(255,255,255,0.1); color: #fff;
-    width: 40px; height: 40px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: bold; font-size: 16px;
-  }
+  .ad-countdown { position: absolute; top: 10px; right: 12px; background: rgba(255,255,255,0.1); color: #fff; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px; }
   .ad-progress-bar { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 20px; overflow: hidden; }
   .ad-progress-fill { height: 100%; background: linear-gradient(90deg, #159957, #30b96d); width: 0%; transition: width 1s linear; }
 
-  /* ============ EMPTY STATE ============ */
+  /* EMPTY */
   .empty-state { text-align: center; color:var(--muted); padding: 30px 0; font-size: 13px; }
   .filter-empty { display:none; text-align:center; color:var(--muted); padding:24px 0; font-size:13px; }
 
-  /* ============ RESPONSIVE ============ */
+  /* RESPONSIVE */
   @media (max-width:560px) {
     body{padding:12px;}
     .stats-grid{gap:7px;}
@@ -200,7 +168,7 @@
 </head>
 <body>
 
-<!-- ============ TOP USER BAR ============ -->
+<!-- TOP USER BAR -->
 <div class="user-bar">
   <span>
     <i class="fa-solid fa-circle-user"></i>
@@ -212,7 +180,7 @@
   <a href="/logout" class="logout-btn" title="Sign out"><i class="fa-solid fa-power-off"></i></a>
 </div>
 
-<!-- ============ TIME BALANCE CARD ============ -->
+<!-- TIME BALANCE -->
 <div class="time-balance-card" id="timeBalanceCard">
   <div class="tb-header">
     <span class="tb-label"><i class="fa-solid fa-clock"></i> Time Balance</span>
@@ -222,21 +190,19 @@
   <div class="tb-sub" id="timeSub">Loading your balance...</div>
 </div>
 
-<!-- ============ VIP INFO CARD (only visible for VIP) ============ -->
+<!-- VIP INFO -->
 <div class="vip-card" id="vipCard">
   <h3><i class="fa-solid fa-crown"></i> VIP Account</h3>
   <p>You have unlimited hosting time. No need to watch ads. Enjoy your bot hosting!</p>
 </div>
 
-<!-- ============ ADS SECTION ============ -->
+<!-- ADS -->
 <div class="ads-card" id="adsCard">
   <div class="ads-header">
     <h3><i class="fa-solid fa-play-circle"></i> Watch Ads to Earn Time</h3>
     <span class="ads-progress" id="adsProgress">0 / 7 ads</span>
   </div>
-  <div class="ads-grid" id="adsGrid">
-    <!-- 7 ad slots will be generated by JS -->
-  </div>
+  <div class="ads-grid" id="adsGrid"></div>
   <button class="ads-cta" id="watchAdBtn" onclick="startAdWatching()">
     <i class="fa-solid fa-play"></i> Watch Ads to Earn 2 Hours
   </button>
@@ -245,7 +211,7 @@
   </div>
 </div>
 
-<!-- ============ DASHBOARD HEADING ============ -->
+<!-- DASHBOARD HEADING -->
 <div class="dashboard-heading">
   <div>
     <h1>Hosting overview</h1>
@@ -257,14 +223,14 @@
   </div>
 </div>
 
-<!-- ============ STATS ============ -->
-<div class="stats-grid" aria-label="Hosting summary">
+<!-- STATS -->
+<div class="stats-grid">
   <div class="stat-card"><span><i class="fa-solid fa-layer-group"></i> Total apps</span><strong id="totalApps">{{ apps|length }}</strong></div>
   <div class="stat-card"><span><i class="fa-solid fa-circle-play"></i> Running</span><strong id="runningApps">{{ apps|selectattr('running')|list|length }}</strong></div>
   <div class="stat-card"><span><i class="fa-solid fa-circle-pause"></i> Offline</span><strong id="offlineApps">{{ apps|rejectattr('running')|list|length }}</strong></div>
 </div>
 
-<!-- ============ UPLOAD ============ -->
+<!-- UPLOAD -->
 <div class="upload-card" id="dropZone">
   <i class="fa-solid fa-cloud-arrow-up"></i>
   <p>Upload a ZIP file (any size supported)</p>
@@ -274,9 +240,9 @@
   <div id="deployStatus"></div>
 </div>
 
-<!-- ============ APP LIST ============ -->
+<!-- APP LIST -->
 <div id="appsList">
-  <div class="toolbar" id="appToolbar">
+  <div class="toolbar">
     <div class="search-wrap"><i class="fa-solid fa-magnifying-glass"></i><input id="appSearch" class="search-input" type="search" placeholder="Search your apps..." aria-label="Search apps"></div>
     <select id="statusFilter" class="filter-select" aria-label="Filter apps by status">
       <option value="all">All statuses</option>
@@ -329,7 +295,7 @@
   <div class="filter-empty" id="filterEmpty"><i class="fa-solid fa-filter-circle-xmark"></i><p>No apps match your search or filter.</p></div>
 </div>
 
-<!-- ============ LOG MODAL ============ -->
+<!-- LOG MODAL -->
 <div class="modal-overlay" id="logModal">
   <div class="modal-box">
     <span class="close-btn" onclick="closeModal('logModal')">&times;</span>
@@ -338,7 +304,7 @@
   </div>
 </div>
 
-<!-- ============ VALIDATE MODAL ============ -->
+<!-- VALIDATE MODAL -->
 <div class="modal-overlay" id="validateModal">
   <div class="modal-box">
     <span class="close-btn" onclick="closeModal('validateModal')">&times;</span>
@@ -347,7 +313,7 @@
   </div>
 </div>
 
-<!-- ============ FILE MANAGER MODAL ============ -->
+<!-- FILE MODAL -->
 <div class="modal-overlay" id="fileModal">
   <div class="modal-box">
     <span class="close-btn" onclick="closeModal('fileModal')">&times;</span>
@@ -365,7 +331,7 @@
   </div>
 </div>
 
-<!-- ============ AD WATCH MODAL ============ -->
+<!-- AD WATCH MODAL -->
 <div class="modal-overlay" id="adWatchModal">
   <div class="modal-box">
     <span class="close-btn" onclick="closeAdModal()" style="color:#fff;">&times;</span>
@@ -389,6 +355,7 @@
 /* ============================================================
    GLOBAL STATE
    ============================================================ */
+const MONETAG_ZONE_ID = "{{ monetag_zone_id or '' }}";
 let currentProject = null;
 let currentFile = null;
 let adWatchState = {
@@ -402,9 +369,11 @@ let adWatchState = {
 let timeBalanceSeconds = 0;
 let isVip = {{ 'true' if is_vip else 'false' }};
 let timeTickInterval = null;
+let serverAdsPerReward = 7;
+let serverRewardSeconds = 7200;
 
 /* ============================================================
-   TIME BALANCE SYSTEM
+   TIME BALANCE
    ============================================================ */
 function formatTime(seconds) {
     seconds = Math.max(0, Math.floor(seconds));
@@ -419,9 +388,14 @@ function loadTimeBalance() {
         if (!res.ok) return;
         timeBalanceSeconds = res.time_balance || 0;
         isVip = res.is_vip || false;
+        if (res.ads_per_reward) serverAdsPerReward = res.ads_per_reward;
+        if (res.reward_seconds) serverRewardSeconds = res.reward_seconds;
+        if (res.ads_per_reward && res.ads_per_reward !== adWatchState.totalAds) {
+            adWatchState.totalAds = res.ads_per_reward;
+            generateAdSlots();
+        }
         updateTimeDisplay();
-        updateAdProgress(res.ads_watched_today || 0);
-        
+        updateAdProgress(res.ads_in_current_cycle || 0);
         if (isVip) {
             document.getElementById('adsCard').style.display = 'none';
             document.getElementById('vipCard').classList.add('show');
@@ -434,45 +408,16 @@ function updateTimeDisplay() {
     const display = document.getElementById('timeDisplay');
     const sub = document.getElementById('timeSub');
     const card = document.getElementById('timeBalanceCard');
-    
-    if (isVip) {
-        display.textContent = '∞';
-        sub.textContent = 'VIP — unlimited hosting';
-        card.classList.remove('low');
-        return;
-    }
-    
+    if (isVip) { display.textContent = '∞'; sub.textContent = 'VIP — unlimited hosting'; card.classList.remove('low'); return; }
     display.textContent = formatTime(timeBalanceSeconds);
-    
-    if (timeBalanceSeconds <= 0) {
-        sub.textContent = 'No time left. Watch ads to earn more.';
-        card.classList.add('low');
-    } else if (timeBalanceSeconds < 300) {
-        sub.textContent = 'Running low! Watch ads soon.';
-        card.classList.add('low');
-    } else {
-        const hours = Math.floor(timeBalanceSeconds / 3600);
-        const mins = Math.floor((timeBalanceSeconds % 3600) / 60);
-        sub.textContent = `≈ ${hours}h ${mins}m of hosting available`;
-        card.classList.remove('low');
-    }
+    if (timeBalanceSeconds <= 0) { sub.textContent = 'No time left. Watch ads to earn more.'; card.classList.add('low'); }
+    else if (timeBalanceSeconds < 300) { sub.textContent = 'Running low! Watch ads soon.'; card.classList.add('low'); }
+    else { const h = Math.floor(timeBalanceSeconds / 3600); const m = Math.floor((timeBalanceSeconds % 3600) / 60); sub.textContent = `≈ ${h}h ${m}m of hosting available`; card.classList.remove('low'); }
 }
 
 function tickTimeBalance() {
     if (isVip) return;
-    if (timeBalanceSeconds > 0) {
-        timeBalanceSeconds--;
-        updateTimeDisplay();
-        // Update per-app time displays
-        document.querySelectorAll('.time-remaining').forEach(el => {
-            const txt = el.textContent;
-            const match = txt.match(/([\d.]+)m/);
-            if (match) {
-                const mins = parseFloat(match[1]);
-                if (mins > 0) el.textContent = (mins - 1/60).toFixed(1) + 'm';
-            }
-        });
-    }
+    if (timeBalanceSeconds > 0) { timeBalanceSeconds--; updateTimeDisplay(); }
 }
 
 function startTimeTicker() {
@@ -481,7 +426,7 @@ function startTimeTicker() {
 }
 
 /* ============================================================
-   ADS SYSTEM
+   ADS
    ============================================================ */
 function generateAdSlots() {
     const grid = document.getElementById('adsGrid');
@@ -490,44 +435,30 @@ function generateAdSlots() {
         const slot = document.createElement('div');
         slot.className = 'ad-slot';
         slot.id = 'adSlot_' + i;
-        slot.innerHTML = `
-            <i class="fa-solid fa-play"></i>
-            <span>${i + 1}</span>
-            <span class="check-mark"><i class="fa-solid fa-circle-check"></i></span>
-        `;
+        slot.innerHTML = `<i class="fa-solid fa-play"></i><span>${i + 1}</span><span class="check-mark"><i class="fa-solid fa-circle-check"></i></span>`;
         grid.appendChild(slot);
     }
 }
 
 function updateAdProgress(completed) {
-    adWatchState.adsCompletedToday = completed;
     document.getElementById('adsProgress').textContent = completed + ' / ' + adWatchState.totalAds + ' ads';
-    
     for (let i = 0; i < adWatchState.totalAds; i++) {
         const slot = document.getElementById('adSlot_' + i);
-        if (slot) {
-            if (i < completed) slot.classList.add('completed');
-            else slot.classList.remove('completed');
-        }
+        if (slot) { if (i < completed) slot.classList.add('completed'); else slot.classList.remove('completed'); }
     }
-    
     const btn = document.getElementById('watchAdBtn');
+    btn.disabled = false;
     if (completed >= adWatchState.totalAds) {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-gift"></i> Claim 2 Hours Reward';
+        btn.innerHTML = '<i class="fa-solid fa-gift"></i> Claim ' + Math.round(serverRewardSeconds / 3600) + ' Hours Reward';
         btn.onclick = claimReward;
     } else {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-play"></i> Watch Ads to Earn 2 Hours';
+        btn.innerHTML = '<i class="fa-solid fa-play"></i> Watch Ads to Earn ' + Math.round(serverRewardSeconds / 3600) + ' Hours';
         btn.onclick = startAdWatching;
     }
 }
 
 function startAdWatching() {
-    if (isVip) {
-        Swal.fire('VIP User', 'You are a VIP — no ads needed!', 'info');
-        return;
-    }
+    if (isVip) { Swal.fire('VIP User', 'You are a VIP — no ads needed!', 'info'); return; }
     adWatchState.currentAd = 0;
     adWatchState.isWatching = true;
     openAdModal();
@@ -541,103 +472,75 @@ function openAdModal() {
 
 function closeAdModal() {
     document.getElementById('adWatchModal').style.display = 'none';
-    if (adWatchState.countdownTimer) {
-        clearInterval(adWatchState.countdownTimer);
-        adWatchState.countdownTimer = null;
-    }
+    if (adWatchState.countdownTimer) { clearInterval(adWatchState.countdownTimer); adWatchState.countdownTimer = null; }
     adWatchState.isWatching = false;
 }
 
 function playNextAd() {
     if (adWatchState.currentAd >= adWatchState.totalAds) {
         closeAdModal();
-        Swal.fire({
-            title: 'All Ads Watched!',
-            text: 'Click the button below to claim your reward.',
-            icon: 'success',
-            confirmButtonText: 'Claim Now'
-        }).then(() => {
-            updateAdProgress(adWatchState.totalAds);
-        });
+        Swal.fire({ title: 'All Ads Watched!', text: 'Click the button below to claim your reward.', icon: 'success', confirmButtonText: 'Claim Now' })
+            .then(() => { updateAdProgress(adWatchState.totalAds); });
         return;
     }
-    
     document.getElementById('adNumber').textContent = adWatchState.currentAd + 1;
     document.getElementById('adProgressFill').style.width = '0%';
-    
+    document.getElementById('adCountdown').textContent = adWatchState.secondsPerAd;
+
+    // If Monetag zone is configured, use the real SDK; otherwise fall back to countdown
+    if (MONETAG_ZONE_ID && typeof window['show_' + MONETAG_ZONE_ID] === 'function') {
+        window['show_' + MONETAG_ZONE_ID]()
+            .then(() => { onAdCompleted(); })
+            .catch(() => { Swal.fire('Ad Error', 'Could not load ad. Try again.', 'error'); closeAdModal(); });
+    } else {
+        // Fallback countdown (works until you configure the real zone)
+        runCountdownAd();
+    }
+}
+
+function runCountdownAd() {
     let secondsLeft = adWatchState.secondsPerAd;
     const countdownEl = document.getElementById('adCountdown');
     countdownEl.textContent = secondsLeft;
-    
-    // ====== MONETAG INTEGRATION POINT ======
-    // In real Monetag setup, you'd call:
-    //   show_XXXXXXX().then(() => { ... })
-    // and rely on the postback from Monetag servers
-    // For now, we use a local countdown simulation.
-    // ======================================
-    
+    document.getElementById('adPlaceholder').innerHTML = '<div style="font-size:14px;opacity:0.7;">Ad placeholder<br><span style="font-size:11px;opacity:0.6;">(Configure Monetag zone to show real ads)</span></div>';
     if (adWatchState.countdownTimer) clearInterval(adWatchState.countdownTimer);
     adWatchState.countdownTimer = setInterval(() => {
         secondsLeft--;
         countdownEl.textContent = secondsLeft;
         const progress = ((adWatchState.secondsPerAd - secondsLeft) / adWatchState.secondsPerAd) * 100;
         document.getElementById('adProgressFill').style.width = progress + '%';
-        
-        if (secondsLeft <= 0) {
-            clearInterval(adWatchState.countdownTimer);
-            // Mark this ad complete
-            const slot = document.getElementById('adSlot_' + adWatchState.currentAd);
-            if (slot) slot.classList.add('completed');
-            
-            // Notify server
-            notifyAdWatched(adWatchState.currentAd);
-            
-            adWatchState.currentAd++;
-            setTimeout(playNextAd, 400);
-        }
+        if (secondsLeft <= 0) { clearInterval(adWatchState.countdownTimer); onAdCompleted(); }
     }, 1000);
 }
 
+function onAdCompleted() {
+    const slot = document.getElementById('adSlot_' + adWatchState.currentAd);
+    if (slot) slot.classList.add('completed');
+    notifyAdWatched(adWatchState.currentAd);
+    adWatchState.currentAd++;
+    setTimeout(playNextAd, 400);
+}
+
 function notifyAdWatched(adIndex) {
-    // Send to server — server verifies and increments a counter
-    fetch('/ads/watched', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ ad_index: adIndex, timestamp: Date.now() })
-    }).then(r => r.json()).then(res => {
-        if (res.ok) {
-            updateAdProgress(res.ads_watched_today || 0);
-        }
-    }).catch(() => {});
+    fetch('/ads/watched', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ ad_index: adIndex, timestamp: Date.now() }) })
+        .then(r => r.json()).then(res => { if (res.ok) updateAdProgress(res.ads_in_current_cycle || 0); }).catch(() => {});
 }
 
 function claimReward() {
-    fetch('/ads/claim', { method: 'POST' })
-        .then(r => r.json()).then(res => {
-            if (res.ok) {
-                timeBalanceSeconds = res.time_balance || 0;
-                updateTimeDisplay();
-                Swal.fire({
-                    title: 'Reward Claimed!',
-                    html: `You earned <b>2 hours</b> of hosting time.<br>New balance: <b>${formatTime(timeBalanceSeconds)}</b>`,
-                    icon: 'success',
-                    confirmButtonText: 'Awesome!'
-                });
-                updateAdProgress(0);
-            } else {
-                Swal.fire('Error', res.error || 'Could not claim reward', 'error');
-            }
-        }).catch(() => Swal.fire('Error', 'Network error', 'error'));
+    fetch('/ads/claim', { method: 'POST' }).then(r => r.json()).then(res => {
+        if (res.ok) {
+            timeBalanceSeconds = res.time_balance || 0;
+            updateTimeDisplay();
+            Swal.fire({ title: 'Reward Claimed!', html: `You earned <b>${Math.round(serverRewardSeconds/3600)} hour(s)</b>.<br>New balance: <b>${formatTime(timeBalanceSeconds)}</b>`, icon: 'success' });
+            updateAdProgress(0);
+        } else { Swal.fire('Error', res.error || 'Could not claim reward', 'error'); }
+    }).catch(() => Swal.fire('Error', 'Network error', 'error'));
 }
 
 /* ============================================================
-   DASHBOARD / UPLOAD / MODALS (unchanged from before)
+   DASHBOARD
    ============================================================ */
-function refreshDashboard() {
-    const button = document.querySelector('.dashboard-heading .btn');
-    if (button) { button.disabled = true; button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Refreshing'; }
-    window.location.reload();
-}
+function refreshDashboard() { window.location.reload(); }
 
 function filterApps() {
     const query = (document.getElementById('appSearch').value || '').trim().toLowerCase();
@@ -654,194 +557,91 @@ function filterApps() {
     const empty = document.getElementById('filterEmpty');
     if (empty) empty.style.display = cards.length && visible === 0 ? 'block' : 'none';
 }
-
-const appSearch = document.getElementById('appSearch');
-const statusFilter = document.getElementById('statusFilter');
-if (appSearch) appSearch.addEventListener('input', filterApps);
-if (statusFilter) statusFilter.addEventListener('change', filterApps);
-window.addEventListener('keydown', function(e) {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        if (appSearch) { appSearch.focus(); appSearch.select(); }
-    }
-});
+document.getElementById('appSearch').addEventListener('input', filterApps);
+document.getElementById('statusFilter').addEventListener('change', filterApps);
+window.addEventListener('keydown', function(e) { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); document.getElementById('appSearch').focus(); } });
 
 function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-// ---------------- UPLOAD ----------------
-document.getElementById('fileInput').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    doUpload(file, false);
-});
-
+// UPLOAD
+document.getElementById('fileInput').addEventListener('change', function(e) { const f = e.target.files[0]; if (f) doUpload(f, false); });
 function doUpload(file, overwrite) {
-    const progressWrap = document.getElementById('progressWrap');
-    const progressBar = document.getElementById('progressBar');
-    const statusDiv = document.getElementById('deployStatus');
-    progressWrap.style.display = 'block';
-    progressBar.style.width = '0%';
-    statusDiv.textContent = 'Uploading...';
-
-    const formData = new FormData();
-    formData.append('file', file, file.name);
-    if (overwrite) formData.append('overwrite', 'true');
-
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/upload', true);
-    xhr.upload.onprogress = function(e) {
-        if (e.lengthComputable) {
-            const pct = Math.round((e.loaded / e.total) * 100);
-            progressBar.style.width = pct + '%';
-            statusDiv.textContent = 'Uploading... ' + pct + '%';
-        }
-    };
+    const pw = document.getElementById('progressWrap'), pb = document.getElementById('progressBar'), sd = document.getElementById('deployStatus');
+    pw.style.display = 'block'; pb.style.width = '0%'; sd.textContent = 'Uploading...';
+    const fd = new FormData(); fd.append('file', file, file.name);
+    if (overwrite) fd.append('overwrite', 'true');
+    const xhr = new XMLHttpRequest(); xhr.open('POST', '/upload', true);
+    xhr.upload.onprogress = e => { if (e.lengthComputable) { const pct = Math.round((e.loaded/e.total)*100); pb.style.width = pct+'%'; sd.textContent = 'Uploading... '+pct+'%'; } };
     xhr.onload = function() {
-        progressWrap.style.display = 'none';
-        let res;
-        try { res = JSON.parse(xhr.responseText); } catch(e) { res = {ok:false, error:'The server response could not be understood.'}; }
-
-        if (res.needs_confirm) {
-            Swal.fire({
-                title: 'App already exists',
-                text: res.error,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonText: 'Overwrite',
-                cancelButtonText: 'Cancel'
-            }).then((result) => {
-                if (result.isConfirmed) doUpload(file, true);
-            });
-            return;
-        }
-
-        if (!res.ok) {
-            statusDiv.textContent = '';
-            Swal.fire('Error', res.error || 'Upload failed.', 'error');
-            return;
-        }
-
-        if (res.warning) {
-            statusDiv.textContent = '';
-            Swal.fire('Upload completed', res.warning, 'warning').then(() => location.reload());
-            return;
-        }
-
-        statusDiv.textContent = 'Deployment completed! Reloading...';
-        setTimeout(() => location.reload(), 700);
+        pw.style.display = 'none';
+        let res; try { res = JSON.parse(xhr.responseText); } catch(e) { res = {ok:false, error:'Bad response'}; }
+        if (res.needs_confirm) { Swal.fire({title:'App exists', text:res.error, icon:'warning', showCancelButton:true, confirmButtonText:'Overwrite'}).then(r => { if (r.isConfirmed) doUpload(file, true); }); return; }
+        if (!res.ok) { sd.textContent = ''; Swal.fire('Error', res.error || 'Upload failed', 'error'); return; }
+        if (res.warning) { sd.textContent = ''; Swal.fire('Uploaded', res.warning, 'warning').then(() => location.reload()); return; }
+        sd.textContent = 'Done!'; setTimeout(() => location.reload(), 700);
     };
-    xhr.onerror = function() {
-        progressWrap.style.display = 'none';
-        statusDiv.textContent = '';
-        Swal.fire('Error', 'Network error. Please try again.', 'error');
-    };
-    xhr.send(formData);
+    xhr.onerror = function() { pw.style.display='none'; sd.textContent=''; Swal.fire('Error','Network error','error'); };
+    xhr.send(fd);
 }
-
 const dz = document.getElementById('dropZone');
-['dragover','dragenter'].forEach(evt => dz.addEventListener(evt, e => { e.preventDefault(); }));
-dz.addEventListener('drop', e => {
-    e.preventDefault();
-    if (e.dataTransfer.files.length) doUpload(e.dataTransfer.files[0], false);
-});
+['dragover','dragenter'].forEach(e => dz.addEventListener(e, ev => ev.preventDefault()));
+dz.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer.files.length) doUpload(e.dataTransfer.files[0], false); });
 
-// ---------------- RUN / RESTART ----------------
+// RUN
 function runApp(name) {
     if (!isVip && timeBalanceSeconds <= 0) {
-        Swal.fire({
-            title: 'No Time Left',
-            text: 'You need to watch ads to earn hosting time first.',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Watch Ads',
-            cancelButtonText: 'Cancel'
-        }).then(r => {
-            if (r.isConfirmed) startAdWatching();
-        });
+        Swal.fire({title:'No Time Left', text:'Watch ads to earn hosting time first.', icon:'warning', showCancelButton:true, confirmButtonText:'Watch Ads'})
+            .then(r => { if (r.isConfirmed) startAdWatching(); });
         return;
     }
-    Swal.fire({ title: 'Starting...', text: name, didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+    Swal.fire({ title: 'Starting...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
     fetch('/run/' + encodeURIComponent(name) + '?json=1').then(r => r.json()).then(res => {
-        if (res.ok) {
-            Swal.fire('Started!', res.device ? ('Device assigned: ' + res.device) : '', 'success').then(() => location.reload());
-        } else {
-            Swal.fire('Could not start', res.error || 'Unknown error', 'error');
-        }
+        if (res.ok) Swal.fire('Started!', res.device ? ('Device: ' + res.device) : '', 'success').then(() => location.reload());
+        else Swal.fire('Failed', res.error || 'Unknown', 'error');
     }).catch(() => Swal.fire('Error', 'Network issue', 'error'));
 }
 
 function restartApp(name) {
     Swal.fire({ title: 'Restarting...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
     fetch('/restart/' + encodeURIComponent(name) + '?json=1').then(r => r.json()).then(res => {
-        if (res.ok) { Swal.fire('Restarted!', '', 'success').then(() => location.reload()); }
-        else { Swal.fire('Failed', res.error || '', 'error'); }
+        if (res.ok) Swal.fire('Restarted!', '', 'success').then(() => location.reload());
+        else Swal.fire('Failed', res.error || '', 'error');
     });
 }
 
 function getPublicLink(name) {
-    fetch('/get_public_link/' + encodeURIComponent(name), { method: 'POST' })
-        .then(r => r.json()).then(res => {
-            if (res.ok) {
-                Swal.fire({
-                    title: 'Public Link (no login required)',
-                    html: '<input readonly style="width:100%;padding:8px;font-size:12px;" value="' + res.url + '" onclick="this.select()"><p style="font-size:11px;opacity:0.7;margin-top:8px;">Anyone with this link can start, stop, and view logs. Files cannot be edited.</p>',
-                    confirmButtonText: 'Close'
-                });
-            } else {
-                Swal.fire('Error', res.error || 'Unable to create the link', 'error');
-            }
-        });
-}
-
-function confirmDelete(name) {
-    Swal.fire({
-        title: 'Are you sure you want to delete this?',
-        text: name + ' will be permanently deleted.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Yes, delete it',
-        confirmButtonColor: '#ef4444'
-    }).then((result) => {
-        if (result.isConfirmed) window.location.href = '/delete/' + encodeURIComponent(name);
+    fetch('/get_public_link/' + encodeURIComponent(name), { method: 'POST' }).then(r => r.json()).then(res => {
+        if (res.ok) Swal.fire({ title: 'Public Link', html: '<input readonly style="width:100%;padding:8px;font-size:12px;" value="' + res.url + '" onclick="this.select()">', confirmButtonText: 'Close' });
+        else Swal.fire('Error', res.error || 'Failed', 'error');
     });
 }
 
-// ---------------- TOGGLES ----------------
-function toggleSetting(name, field, checkbox) {
-    fetch('/toggle_' + field + '/' + encodeURIComponent(name), { method: 'POST' })
-        .then(r => r.json()).then(res => {
-            if (!res.ok) { checkbox.checked = !checkbox.checked; Swal.fire('Error', 'The setting could not be saved', 'error'); }
-        }).catch(() => { checkbox.checked = !checkbox.checked; });
+function confirmDelete(name) {
+    Swal.fire({ title: 'Delete this app?', text: name + ' will be permanently removed.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Yes, delete', confirmButtonColor: '#ef4444' })
+        .then(r => { if (r.isConfirmed) window.location.href = '/delete/' + encodeURIComponent(name); });
 }
 
-// ---------------- VALIDATE ----------------
+function toggleSetting(name, field, cb) {
+    fetch('/toggle_' + field + '/' + encodeURIComponent(name), { method: 'POST' }).then(r => r.json()).then(res => {
+        if (!res.ok) { cb.checked = !cb.checked; Swal.fire('Error', 'Could not save', 'error'); }
+    }).catch(() => { cb.checked = !cb.checked; });
+}
+
 function validateApp(name) {
     document.getElementById('validateModal').style.display = 'flex';
-    const box = document.getElementById('validateBox');
-    box.innerHTML = 'Checking code...';
+    const box = document.getElementById('validateBox'); box.innerHTML = 'Checking...';
     fetch('/validate/' + encodeURIComponent(name)).then(r => r.json()).then(res => {
-        if (res.ok) {
-            box.innerHTML = '<div class="validate-box validate-ok"><i class="fa-solid fa-circle-check"></i> Everything looks good! Entry file: ' + (res.entry || '') + '</div>';
-        } else if (res.problems) {
+        if (res.ok) box.innerHTML = '<div class="validate-box validate-ok"><i class="fa-solid fa-circle-check"></i> OK. Entry: ' + (res.entry || '') + '</div>';
+        else if (res.problems) {
             let html = '<div class="validate-box validate-bad">';
-            res.problems.forEach(p => {
-                html += '<b>' + p.file + '</b>' + (p.line ? (' (Line ' + p.line + ')') : '') + '<br>' + escapeHtml(p.error || '') + '<hr style="opacity:0.2;">';
-            });
-            html += '</div>';
-            box.innerHTML = html;
-        } else {
-            box.innerHTML = '<div class="validate-box validate-bad">' + escapeHtml(res.error || 'Unknown issue') + '</div>';
-        }
-    }).catch(() => { box.innerHTML = '<div class="validate-box validate-bad">An error occurred while checking.</div>'; });
+            res.problems.forEach(p => { html += '<b>' + p.file + '</b>' + (p.line ? ' (Line ' + p.line + ')' : '') + '<br>' + escapeHtml(p.error || '') + '<hr style="opacity:0.2;">'; });
+            html += '</div>'; box.innerHTML = html;
+        } else box.innerHTML = '<div class="validate-box validate-bad">' + escapeHtml(res.error || 'Unknown') + '</div>';
+    }).catch(() => { box.innerHTML = '<div class="validate-box validate-bad">Error</div>'; });
 }
 
-function escapeHtml(str) {
-    const d = document.createElement('div');
-    d.textContent = str;
-    return d.innerHTML;
-}
+function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
 
-// ---------------- LOGS ----------------
 let logInterval = null;
 function openLogs(name) {
     document.getElementById('logModal').style.display = 'flex';
@@ -853,15 +653,12 @@ function openLogs(name) {
 function fetchLogs(name) {
     fetch('/get_log/' + encodeURIComponent(name)).then(r => r.json()).then(res => {
         const box = document.getElementById('logBox');
-        box.textContent = res.log || '(No logs available yet)';
+        box.textContent = res.log || '(No logs)';
         box.scrollTop = box.scrollHeight;
     });
 }
-document.getElementById('logModal').addEventListener('click', function(e){
-    if (e.target === this) { clearInterval(logInterval); closeModal('logModal'); }
-});
+document.getElementById('logModal').addEventListener('click', function(e) { if (e.target === this) { clearInterval(logInterval); closeModal('logModal'); } });
 
-// ---------------- FILE MANAGER ----------------
 function openFiles(name) {
     currentProject = name;
     document.getElementById('fileModal').style.display = 'flex';
@@ -874,7 +671,7 @@ function loadFileList() {
     const view = document.getElementById('fileListView');
     view.innerHTML = 'Loading...';
     fetch('/list_files/' + encodeURIComponent(currentProject)).then(r => r.json()).then(res => {
-        if (!res.files.length) { view.innerHTML = '<p style="font-size:12px;opacity:0.6;">No files found.</p>'; return; }
+        if (!res.files.length) { view.innerHTML = '<p style="font-size:12px;opacity:0.6;">No files.</p>'; return; }
         view.innerHTML = '';
         res.files.forEach(f => {
             const div = document.createElement('div');
@@ -895,36 +692,31 @@ function openFileEditor(filename) {
             document.getElementById('fileEditor').value = res.content || '';
         });
 }
-function backToFileList() {
-    document.getElementById('fileListView').style.display = 'block';
-    document.getElementById('fileEditView').style.display = 'none';
-    loadFileList();
-}
+function backToFileList() { document.getElementById('fileListView').style.display='block'; document.getElementById('fileEditView').style.display='none'; loadFileList(); }
 function saveFile() {
     const content = document.getElementById('fileEditor').value;
     fetch('/save_file', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({project: currentProject, filename: currentFile, content: content}) })
         .then(r => r.json()).then(res => {
             if (res.status === 'success') Swal.fire({title:'Saved!', icon:'success', timer:1000, showConfirmButton:false});
-            else Swal.fire('Error', res.error || 'The file could not be saved', 'error');
+            else Swal.fire('Error', res.error || 'Failed', 'error');
         });
 }
 function deleteFileFromEditor() {
-    Swal.fire({title:'Delete this file?', icon:'warning', showCancelButton:true, confirmButtonColor:'#ef4444'}).then(result => {
-        if (!result.isConfirmed) return;
+    Swal.fire({title:'Delete this file?', icon:'warning', showCancelButton:true, confirmButtonColor:'#ef4444'}).then(r => {
+        if (!r.isConfirmed) return;
         fetch('/delete_file', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({project: currentProject, filename: currentFile}) })
-            .then(r => r.json()).then(res => { backToFileList(); });
+            .then(r => r.json()).then(() => backToFileList());
     });
 }
-document.getElementById('fileModal').addEventListener('click', function(e){
-    if (e.target === this) closeModal('fileModal');
-});
+document.getElementById('fileModal').addEventListener('click', function(e) { if (e.target === this) closeModal('fileModal'); });
 
-// ---------------- INIT ----------------
+/* ============================================================
+   INIT
+   ============================================================ */
 generateAdSlots();
 loadTimeBalance();
 startTimeTicker();
-setInterval(loadTimeBalance, 30000);  // refresh every 30s
-setInterval(() => { location.reload(); }, 120000);  // auto-reload every 2 min
+setInterval(loadTimeBalance, 30000);
 </script>
 </body>
 </html>
