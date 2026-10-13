@@ -6,10 +6,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
 <!-- ============================================================
-     MONETAG — OnClick (Popunder) — Zone ID: 12022485
-     This script auto-attaches popunder to page clicks.
+     MONETAG SDK — OnClick (Popunder), Zone ID: 12022485
+     Auto-attaches popunder to real user clicks.
      ============================================================ -->
-<script>(function(s){s.dataset.zone='12022485',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+<script src="https://al5sm.com/tag.min.js" data-zone="12022485"></script>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -122,15 +122,34 @@
   .validate-ok { background: #e8f8ed; border: 1px solid #73c795; color: #168b4f; }
   .validate-bad { background: #fff0f1; border: 1px solid #efabb2; color: #a62e3b; }
 
-  #adWatchModal { background: rgba(0,0,0,.88); }
+  /* ============ AD WATCH MODAL ============ */
+  #adWatchModal { background: rgba(0,0,0,.9); }
   #adWatchModal .modal-box { max-width: 520px; text-align: center; background: #0f1a14; border-color: #1e3a2a; }
-  .ad-frame { background: #112018; border-radius: 12px; padding: 40px 20px; margin: 15px 0; min-height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9cf0b7; position: relative; overflow: hidden; cursor: pointer; }
+  #adWatchModal .modal-box h3 { color: #fff; }
+  .ad-frame {
+    background: linear-gradient(135deg, #112018 0%, #0d1a10 100%);
+    border-radius: 12px; padding: 30px 20px; margin: 15px 0;
+    min-height: 280px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #9cf0b7; position: relative; overflow: hidden;
+    cursor: pointer; border: 2px dashed #30b96d;
+    transition: all .2s;
+  }
+  .ad-frame:hover { border-color: #f0b429; background: linear-gradient(135deg, #142418 0%, #0f1e14 100%); }
+  .ad-frame.disabled { cursor: default; border-color: #1e3a2a; }
+  .ad-frame.disabled:hover { border-color: #1e3a2a; }
   .ad-frame .ad-label { font-size: 11px; opacity: 0.5; margin-bottom: 15px; letter-spacing: 2px; }
-  .ad-frame .ad-placeholder { font-size: 14px; opacity: 0.85; }
-  .ad-frame .ad-tap-hint { font-size: 12px; color: #f0b429; margin-top: 12px; animation: pulse 1.5s infinite; }
-  @keyframes pulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
-  .ad-countdown { position: absolute; top: 10px; right: 12px; background: rgba(255,255,255,0.15); color: #fff; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px; }
-  .ad-progress-bar { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 20px; overflow: hidden; }
+  .ad-frame .ad-icon { font-size: 50px; color: #f0b429; margin-bottom: 15px; animation: pulse 1.5s infinite; }
+  .ad-frame .ad-title { font-size: 16px; font-weight: bold; color: #fff; margin-bottom: 8px; }
+  .ad-frame .ad-hint { font-size: 12px; color: #9cf0b7; opacity: 0.8; }
+  .ad-frame .ad-click-badge {
+    margin-top: 15px; background: linear-gradient(135deg, #f0b429, #d99a1f);
+    color: #fff; padding: 10px 20px; border-radius: 30px;
+    font-weight: bold; font-size: 13px; letter-spacing: 0.5px;
+    box-shadow: 0 5px 15px rgba(240, 180, 41, 0.4);
+  }
+  @keyframes pulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.8; } }
+  .ad-countdown { position: absolute; top: 10px; right: 12px; background: rgba(255,255,255,0.15); color: #fff; width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 17px; border: 2px solid rgba(255,255,255,0.2); }
+  .ad-progress-bar { width: 100%; height: 5px; background: rgba(255,255,255,0.1); border-radius: 3px; margin-top: 20px; overflow: hidden; }
   .ad-progress-fill { height: 100%; background: linear-gradient(90deg, #159957, #30b96d); width: 0%; transition: width 1s linear; }
 
   .empty-state { text-align: center; color:var(--muted); padding: 30px 0; font-size: 13px; }
@@ -320,19 +339,18 @@
 <div class="modal-overlay" id="adWatchModal">
   <div class="modal-box">
     <span class="close-btn" onclick="closeAdModal()" style="color:#fff;">&times;</span>
-    <h3 style="color:#fff;">Ad <span id="adNumber">1</span> of 7</h3>
-    <div class="ad-frame" id="adFrame" onclick="triggerMonetagAd()">
+    <h3>Ad <span id="adNumber">1</span> of <span id="adTotal">7</span></h3>
+    <div class="ad-frame" id="adFrame">
       <div class="ad-countdown" id="adCountdown">10</div>
       <div class="ad-label">ADVERTISEMENT</div>
-      <div class="ad-placeholder" id="adPlaceholder">
-        <i class="fa-solid fa-hand-pointer" style="font-size:30px; margin-bottom:15px; display:block; color:#f0b429;"></i>
-        Tap here to load ad
-      </div>
-      <div class="ad-tap-hint">👆 Tap this area to open the ad</div>
+      <div class="ad-icon" id="adIcon"><i class="fa-solid fa-hand-pointer"></i></div>
+      <div class="ad-title" id="adTitle">Tap here to load ad</div>
+      <div class="ad-hint" id="adHint">The ad will open in a new tab. Watch it for 10 seconds.</div>
+      <div class="ad-click-badge" id="adClickBadge">👆 TAP TO OPEN AD</div>
       <div class="ad-progress-bar"><div class="ad-progress-fill" id="adProgressFill"></div></div>
     </div>
     <p style="color:#9cf0b7; font-size:12px; margin:0;">
-      <i class="fa-solid fa-info-circle"></i> Please wait 10 seconds for the ad to complete
+      <i class="fa-solid fa-info-circle"></i> Please wait for the 10-second timer
     </p>
   </div>
 </div>
@@ -350,7 +368,7 @@ let adWatchState = {
     isWatching: false,
     adsCompletedToday: 0,
     countdownTimer: null,
-    adTriggered: false
+    adOpened: false
 };
 let timeBalanceSeconds = 0;
 let isVip = {{ 'true' if is_vip else 'false' }};
@@ -378,6 +396,7 @@ function loadTimeBalance() {
         if (res.reward_seconds) serverRewardSeconds = res.reward_seconds;
         if (res.ads_per_reward && res.ads_per_reward !== adWatchState.totalAds) {
             adWatchState.totalAds = res.ads_per_reward;
+            document.getElementById('adTotal').textContent = adWatchState.totalAds;
             generateAdSlots();
         }
         updateTimeDisplay();
@@ -454,28 +473,13 @@ function startAdWatching() {
 function openAdModal() {
     document.getElementById('adWatchModal').style.display = 'flex';
     document.getElementById('adNumber').textContent = adWatchState.currentAd + 1;
+    document.getElementById('adTotal').textContent = adWatchState.totalAds;
 }
 
 function closeAdModal() {
     document.getElementById('adWatchModal').style.display = 'none';
     if (adWatchState.countdownTimer) { clearInterval(adWatchState.countdownTimer); adWatchState.countdownTimer = null; }
     adWatchState.isWatching = false;
-}
-
-function triggerMonetagAd() {
-    // OnClick (Popunder) — user must click inside the ad frame to trigger a popunder.
-    // This synthetic click dispatches a real click event, which the Monetag script picks up.
-    if (adWatchState.adTriggered) return;
-    adWatchState.adTriggered = true;
-
-    // Dispatch a synthetic click on the body — Monetag's script listens on document
-    const event = new MouseEvent('click', { bubbles: true, cancelable: true, view: window });
-    document.body.dispatchEvent(event);
-
-    // Visual feedback
-    document.getElementById('adPlaceholder').innerHTML =
-        '<i class="fa-solid fa-check-circle" style="font-size:30px; margin-bottom:15px; display:block; color:#30b96d;"></i>' +
-        '<div style="font-size:13px;">Ad launched!<br><span style="font-size:11px;opacity:0.7;">Return to this tab after viewing</span></div>';
 }
 
 function playNextAd() {
@@ -488,19 +492,20 @@ function playNextAd() {
     document.getElementById('adNumber').textContent = adWatchState.currentAd + 1;
     document.getElementById('adProgressFill').style.width = '0%';
     document.getElementById('adCountdown').textContent = adWatchState.secondsPerAd;
-    adWatchState.adTriggered = false;
+    adWatchState.adOpened = false;
 
-    // Reset ad frame UI for this ad
-    document.getElementById('adPlaceholder').innerHTML =
-        '<i class="fa-solid fa-hand-pointer" style="font-size:30px; margin-bottom:15px; display:block; color:#f0b429;"></i>' +
-        'Tap here to load ad';
+    // Reset the ad frame UI for this ad
+    const frame = document.getElementById('adFrame');
+    frame.classList.remove('disabled');
+    document.getElementById('adIcon').innerHTML = '<i class="fa-solid fa-hand-pointer"></i>';
+    document.getElementById('adTitle').textContent = 'Tap here to load ad';
+    document.getElementById('adHint').textContent = 'The ad will open in a new tab. Watch it for 10 seconds.';
+    document.getElementById('adClickBadge').style.display = 'inline-flex';
 
-    // Auto-trigger the popunder after a short delay (so it feels automatic)
-    setTimeout(() => {
-        triggerMonetagAd();
-    }, 800);
+    // Attach a real click handler (Monetag will catch this real click)
+    frame.onclick = handleAdFrameClick;
 
-    // 10-second countdown
+    // Start the 10-second countdown
     let secondsLeft = adWatchState.secondsPerAd;
     if (adWatchState.countdownTimer) clearInterval(adWatchState.countdownTimer);
     adWatchState.countdownTimer = setInterval(() => {
@@ -513,6 +518,21 @@ function playNextAd() {
             onAdCompleted();
         }
     }, 1000);
+}
+
+function handleAdFrameClick() {
+    // This is a real click (isTrusted=true), so Monetag's OnClick script WILL trigger a popunder.
+    if (adWatchState.adOpened) return;
+    adWatchState.adOpened = true;
+
+    // Visual feedback
+    const frame = document.getElementById('adFrame');
+    frame.classList.add('disabled');
+    document.getElementById('adIcon').innerHTML = '<i class="fa-solid fa-check-circle" style="color:#30b96d;"></i>';
+    document.getElementById('adTitle').textContent = 'Ad opened in new tab';
+    document.getElementById('adHint').textContent = 'Return here after viewing the ad.';
+    document.getElementById('adClickBadge').style.display = 'none';
+    frame.onclick = null;
 }
 
 function onAdCompleted() {
