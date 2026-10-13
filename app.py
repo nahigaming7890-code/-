@@ -44,12 +44,12 @@ ENTRY_FILES_JS = ["index.js", "server.js", "bot.js", "app.js", "main.js"]
 ENTRY_FILES_PHP = ["index.php", "bot.php", "main.php", "run.php", "start.php"]
 
 # ============================================================
-# ADS / TIME CONFIG (defaults — overridable via admin panel)
+# ADS / TIME CONFIG (defaults)
 # ============================================================
-ADS_PER_REWARD = 7           # 7 ads
-SECONDS_PER_AD = 10          # each ad = 10 seconds
-REWARD_SECONDS = 2 * 3600    # 2 hours reward
-LOW_TIME_WARNING = 300       # 5 minutes
+ADS_PER_REWARD = 7
+SECONDS_PER_AD = 10
+REWARD_SECONDS = 2 * 3600
+LOW_TIME_WARNING = 300
 
 # ============================================================
 # IN-MEMORY RUNTIME STATE
@@ -70,7 +70,7 @@ def default_db():
         "start_times": {},
         "app_settings": {},
         "public_tokens": {},
-        "ad_events": {},          # email -> list of recent ad timestamps
+        "ad_events": {},
         "config": {
             "max_concurrent_per_user": 3,
             "max_concurrent_vip": 10,
@@ -108,7 +108,6 @@ def load_db():
             if k not in data.get("config", {}):
                 data["config"][k] = v
 
-        # ensure every user has ad/time fields
         for email, rec in list(data.get("users", {}).items()):
             if not isinstance(rec, dict):
                 continue
@@ -229,7 +228,7 @@ def device_env_vars(device):
     return {"BOT_USER_AGENT": device["ua"], "BOT_DEVICE_PLATFORM": device["platform"]}
 
 # ============================================================
-# AD / TIME HELPERS
+# USER TIME / AD HELPERS
 # ============================================================
 def ensure_user_time_fields(rec):
     rec.setdefault("time_balance", 0)
@@ -246,36 +245,27 @@ def reset_daily_ad_counter_if_needed(rec):
         rec["last_ad_day"] = today
         rec["ads_watched_today"] = 0
 
-def user_has_time(db, user_key):
-    """user_key can be email OR __admin__ (admin = unlimited)."""
-    if user_key == ADMIN_INTERNAL_ID:
-        return True
-    rec = db.get("users", {}).get(user_key)
-    if not rec:
-        return False
-    if rec.get("vip"):
-        return True
-    return rec.get("time_balance", 0) > 0
-
 def user_is_vip(db, user_key):
     if user_key == ADMIN_INTERNAL_ID:
         return True
     rec = db.get("users", {}).get(user_key)
     return bool(rec and rec.get("vip"))
 
-def count_running_for_email(email):
-    return sum(1 for (u, _), p in processes.items() if u == user_folder_id(email) and p.poll() is None)
-
 def user_email_from_key(user_key):
-    """Reverse-lookup: given a folder_id, find the email."""
     db = load_db()
     for email in db.get("users", {}).keys():
         if user_folder_id(email) == user_key:
             return email
     return None
 
+def count_running_for_user(user):
+    return sum(1 for (u, _), p in processes.items() if u == user and p.poll() is None)
+
+def count_running_global():
+    return sum(1 for p in processes.values() if p.poll() is None)
+
 # ============================================================
-# APPS: VALIDATION
+# VALIDATION
 # ============================================================
 def validate_python_file(path):
     try:
@@ -405,7 +395,7 @@ def smart_install_python(extract_dir, venv_dir, log_callback):
     req_path = os.path.join(extract_dir, "requirements.txt")
     state_path = os.path.join(venv_dir, ".install_state.json")
     if not os.path.exists(req_path):
-        log_callback("No requirements.txt found; skipping.\n")
+        log_callback("No requirements.txt; skipping.\n")
         return {"ok": True, "skipped": True}
     current_hash = file_hash(req_path)
     prev_state = {}
@@ -414,7 +404,7 @@ def smart_install_python(extract_dir, venv_dir, log_callback):
             with open(state_path) as f: prev_state = json.load(f)
         except Exception: prev_state = {}
     if prev_state.get("hash") == current_hash and prev_state.get("last_ok"):
-        log_callback("requirements.txt unchanged; skipping install.\n")
+        log_callback("requirements.txt unchanged; skipping.\n")
         return {"ok": True, "skipped": True}
     try:
         python_bin = ensure_venv(venv_dir)
@@ -461,7 +451,7 @@ def smart_install_python(extract_dir, venv_dir, log_callback):
 def smart_install_node(extract_dir, log_callback):
     pkg_path = os.path.join(extract_dir, "package.json")
     if not os.path.exists(pkg_path):
-        log_callback("No package.json; skipping npm install.\n")
+        log_callback("No package.json; skipping.\n")
         return {"ok": True, "skipped": True}
     npm_bin = shutil.which("npm")
     if not npm_bin:
@@ -475,7 +465,7 @@ def smart_install_node(extract_dir, log_callback):
             with open(state_path) as f: prev_state = json.load(f)
         except Exception: prev_state = {}
     if prev_state.get("hash") == current_hash and prev_state.get("last_ok"):
-        log_callback("package.json unchanged; skipping npm install.\n")
+        log_callback("package.json unchanged.\n")
         return {"ok": True, "skipped": True}
     log_callback("Running npm install...\n")
     try:
@@ -555,17 +545,10 @@ def trim_log_if_needed(log_path, max_bytes=500_000):
     except Exception:
         pass
 
-def count_running_for_user(user):
-    return sum(1 for (u, _), p in processes.items() if u == user and p.poll() is None)
-
-def count_running_global():
-    return sum(1 for p in processes.values() if p.poll() is None)
-
 # ============================================================
 # APP LAUNCHER
 # ============================================================
 def start_app_process(user, name, db):
-    """user = folder_id (or ADMIN_INTERNAL_ID)."""
     app_dir, extract_dir, log_path = app_dirs(user, name)
     key = (user, name)
 
@@ -578,22 +561,21 @@ def start_app_process(user, name, db):
         append_log(log_path, f"[{datetime.now()}] START FAILED: {msg}\n")
         return {"ok": False, "error": msg}
 
-    # ---------- TIME GATE ----------
+    # TIME GATE
     if user != ADMIN_INTERNAL_ID:
         email = user_email_from_key(user)
         if email:
             rec = db["users"].get(email, {})
-            if not rec.get("vip"):
-                if rec.get("time_balance", 0) <= 0:
-                    return {"ok": False, "error": "No hosting time left. Please watch ads to earn more time."}
+            if not rec.get("vip") and rec.get("time_balance", 0) <= 0:
+                return {"ok": False, "error": "No hosting time left. Watch ads to earn more."}
 
-    # ---------- CONCURRENCY ----------
+    # CONCURRENCY
     max_global = get_config(db, "max_concurrent_global")
     if user != ADMIN_INTERNAL_ID:
         email = user_email_from_key(user)
         max_user = get_user_concurrency_limit(db, email) if email else 3
         if count_running_for_user(user) >= max_user:
-            return {"ok": False, "error": f"You can run a maximum of {max_user} apps at once."}
+            return {"ok": False, "error": f"Max {max_user} apps at once."}
     if count_running_global() >= max_global:
         return {"ok": False, "error": "Server at maximum capacity."}
 
@@ -615,7 +597,7 @@ def start_app_process(user, name, db):
     elif kind == "php":
         php_bin = shutil.which("php")
         if not php_bin:
-            msg = "PHP is not installed on this server. Add php82 to your nixpacks.toml / mise.toml."
+            msg = "PHP is not installed. Add php82 to your nixpacks.toml / mise.toml."
             append_log(log_path, f"[{datetime.now()}] START FAILED: {msg}\n")
             return {"ok": False, "error": msg}
         install_res = {"ok": True, "skipped": True}
@@ -681,38 +663,33 @@ def stop_all_user_apps(user_folder):
             stop_app_process(user_folder, name, db, manual=False)
 
 # ============================================================
-# TIME CONSUMPTION (runs every second in scheduler)
+# TIME CONSUMPTION
 # ============================================================
 def consume_time_for_all_users():
     db = load_db()
     changed = False
     now = time.time()
 
-    # For each user with a time_balance > 0
     for email, rec in list(db.get("users", {}).items()):
         if not isinstance(rec, dict): continue
         if rec.get("vip"): continue
         if rec.get("time_balance", 0) <= 0:
-            continue
-
-        folder = user_folder_id(email)
-        # Count running apps for this user
-        running_count = sum(1 for (u, _), p in processes.items()
-                            if u == folder and p.poll() is None)
-
-        if running_count <= 0:
-            # No apps running — no time consumed
             rec["last_time_tick"] = int(now * 1000)
             continue
 
-        # Time spent since last tick
+        folder = user_folder_id(email)
+        running_count = sum(1 for (u, _), p in processes.items()
+                            if u == folder and p.poll() is None)
+        if running_count <= 0:
+            rec["last_time_tick"] = int(now * 1000)
+            continue
+
         last_ms = rec.get("last_time_tick", int(now * 1000))
         elapsed = (now * 1000 - last_ms) / 1000.0
         if elapsed <= 0:
             rec["last_time_tick"] = int(now * 1000)
             continue
 
-        # Deduct (elapsed * number_of_running_apps)
         deduction = int(elapsed * running_count)
         if deduction <= 0:
             rec["last_time_tick"] = int(now * 1000)
@@ -723,8 +700,7 @@ def consume_time_for_all_users():
         changed = True
 
         if rec["time_balance"] <= 0:
-            # Time ran out — stop all apps
-            print(f"[time] user {email} ran out of time, stopping apps")
+            print(f"[time] {email} out of time, stopping apps")
             stop_all_user_apps(folder)
             rec["time_balance"] = 0
 
@@ -738,16 +714,14 @@ def scheduler_loop():
     last_time_tick = 0
     while True:
         try:
-            # Every second: consume time
             now = time.time()
             if now - last_time_tick >= 1:
                 try:
                     consume_time_for_all_users()
                 except Exception as e:
-                    print(f"[scheduler] time consume error: {e}")
+                    print(f"[scheduler] time error: {e}")
                 last_time_tick = now
 
-            # Every 30 seconds: check sleep/auto-on/crashes
             db = load_db()
             sleep_hours = get_config(db, "sleep_after_hours")
             wake_minutes = get_config(db, "auto_wake_after_minutes")
@@ -765,7 +739,7 @@ def scheduler_loop():
 
                 if is_running and not settings.get("unlimited") and (now - started_s) >= sleep_hours * 3600:
                     _, _, log_path = app_dirs(user, name)
-                    append_log(log_path, f"[{datetime.now()}] Auto-sleep: {sleep_hours}h reached.\n")
+                    append_log(log_path, f"[{datetime.now()}] Auto-sleep.\n")
                     stop_app_process(user, name, db, manual=False)
                     settings = get_app_settings(db, user, name)
                     settings["offline_at"] = now
@@ -779,7 +753,7 @@ def scheduler_loop():
                     changed = True
                     _, _, log_path = app_dirs(user, name)
                     if settings.get("auto_restart") and not settings.get("manual_stop"):
-                        append_log(log_path, f"[{datetime.now()}] Crash detected; auto-restarting.\n")
+                        append_log(log_path, f"[{datetime.now()}] Crash; auto-restarting.\n")
                         start_app_process(user, name, db)
 
                 if not is_running and settings.get("offline_at") and settings.get("auto_on") and not settings.get("manual_stop"):
@@ -793,8 +767,7 @@ def scheduler_loop():
                 save_db(db)
         except Exception as e:
             print(f"[scheduler] error: {e}")
-
-        time.sleep(1)  # tight loop for time consumption
+        time.sleep(1)
 
 def resume_apps_after_restart():
     db = load_db()
@@ -821,13 +794,14 @@ def ensure_scheduler():
         t.start()
 
 # ============================================================
-# LOGIN PAGE
+# LOGIN PAGE (with Monetag meta tag)
 # ============================================================
 LOGIN_HTML = '''
 <!DOCTYPE html>
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="monetag" content="a8946d4a338fc620677789dfc0dfc73a">
     <title>Login | MY HOST</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -925,7 +899,6 @@ ADMIN_HTML = '''
         .btn-primary { background: linear-gradient(135deg, var(--accent-dark), var(--accent)); color: #fff; }
         .btn-logout { background: var(--danger); color: white; padding: 8px 14px; }
         .btn-danger { background: var(--danger); color: white; }
-        .btn-gold { background: linear-gradient(135deg, #f0b429, #d99a1f); color: #fff; }
         .btn-small { padding: 6px 10px; font-size: 11px; }
         .user-item { background: #f5fbf7; border-radius: 12px; padding: 12px; margin-bottom: 8px; border: 1px solid var(--line); }
         .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -934,7 +907,6 @@ ADMIN_HTML = '''
         .tag-green { color: #168b4f; border-color: #73c795; background: #e8f8ed; }
         .tag-red { color: #a62e3b; border-color: #efabb2; background: #fff0f1; }
         .tag-gold { color: #b47d0e; border-color: #f0b429; background: #fff8e1; }
-        .tag-blue { color: #2563eb; border-color: #93c5fd; background: #eff6ff; }
         .action-row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
         .toggle-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
         .toggle-switch input { opacity: 0; width: 0; height: 0; }
@@ -967,7 +939,7 @@ ADMIN_HTML = '''
             <input type="number" name="seconds_per_ad" value="{{ ads_config.seconds_per_ad }}">
             <label class="small-text">Reward seconds (per reward)</label>
             <input type="number" name="reward_seconds" value="{{ ads_config.reward_seconds }}">
-            <label class="small-text">Monetag Zone ID (for HTML integration)</label>
+            <label class="small-text">Monetag Zone ID (for HTML SDK)</label>
             <input type="text" name="monetag_zone_id" value="{{ ads_config.monetag_zone_id }}" placeholder="e.g. 1234567">
             <label class="small-text">Monetag Postback Secret (server-side verification)</label>
             <input type="text" name="monetag_postback_secret" value="{{ ads_config.monetag_postback_secret }}" placeholder="your-secret">
@@ -1086,7 +1058,6 @@ function toggleVip(email, checkbox) {
             else { setTimeout(() => location.reload(), 300); }
         });
 }
-
 document.getElementById('adminFileInput').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -1100,13 +1071,11 @@ document.getElementById('adminFileInput').addEventListener('change', function(e)
             else { statusDiv.textContent = ''; Swal.fire('Error', res.error || 'Upload fail', 'error'); }
         });
 });
-
 function getAdminPublicLink(name) {
     fetch('/admin/get_public_link/' + encodeURIComponent(name), { method: 'POST' })
         .then(r => r.json()).then(res => {
-            if (res.ok) {
-                Swal.fire({ title: 'Public Link', html: '<input readonly style="width:100%;padding:8px;" value="' + res.url + '" onclick="this.select()">', confirmButtonText: 'Close' });
-            } else { Swal.fire('Error', res.error || 'Unable', 'error'); }
+            if (res.ok) Swal.fire({ title: 'Public Link', html: '<input readonly style="width:100%;padding:8px;" value="' + res.url + '" onclick="this.select()">', confirmButtonText: 'Close' });
+            else Swal.fire('Error', res.error || 'Unable', 'error');
         });
 }
 </script>
@@ -1211,7 +1180,7 @@ def login():
             db["users"][email] = {
                 "pw_hash": generate_password_hash(pw), "vip": False,
                 "created": int(time.time() * 1000),
-                "time_balance": 600,   # 10 minutes free on signup (adjust as you like)
+                "time_balance": 600,
                 "ads_watched_today": 0, "ads_in_current_cycle": 0,
                 "last_ad_day": "", "total_ads_watched": 0,
                 "total_time_earned": 600, "last_time_tick": int(time.time() * 1000)
@@ -1318,7 +1287,9 @@ def index():
             "remaining_wake_min": round(remaining_wake / 60, 1),
         })
     display_name = "Admin" if session.get('is_admin') else session.get('username', user_name)
-    return render_template("index.html", apps=apps_list, username=display_name, is_vip=is_vip)
+    monetag_zone = get_config(db, "monetag_zone_id") or ""
+    return render_template("index.html", apps=apps_list, username=display_name,
+                           is_vip=is_vip, monetag_zone_id=monetag_zone)
 
 # ============================================================
 # ROUTES — ADS / TIME
@@ -1329,7 +1300,12 @@ def ads_status():
         return jsonify({"ok": False}), 401
     db = load_db()
     if session.get('is_admin'):
-        return jsonify({"ok": True, "is_vip": True, "time_balance": -1, "ads_watched_today": 0})
+        return jsonify({"ok": True, "is_vip": True, "time_balance": -1,
+                        "ads_watched_today": 0, "ads_in_current_cycle": 0,
+                        "total_ads_watched": 0,
+                        "ads_per_reward": get_config(db, "ads_per_reward"),
+                        "seconds_per_ad": get_config(db, "seconds_per_ad"),
+                        "reward_seconds": get_config(db, "reward_seconds")})
     email = session.get('username')
     rec = db["users"].get(email)
     if not rec:
@@ -1354,7 +1330,7 @@ def ads_watched():
     if not require_login():
         return jsonify({"ok": False}), 401
     if session.get('is_admin'):
-        return jsonify({"ok": True, "ads_watched_today": 0})
+        return jsonify({"ok": True, "ads_in_current_cycle": 0, "ads_watched_today": 0})
     email = session.get('username')
     db = load_db()
     rec = db["users"].get(email)
@@ -1363,7 +1339,6 @@ def ads_watched():
     ensure_user_time_fields(rec)
     reset_daily_ad_counter_if_needed(rec)
 
-    # Only increment if we're within the ad cycle
     ads_per = get_config(db, "ads_per_reward")
     if rec.get("ads_in_current_cycle", 0) < ads_per:
         rec["ads_in_current_cycle"] = rec.get("ads_in_current_cycle", 0) + 1
@@ -1404,12 +1379,6 @@ def ads_claim():
 # ============================================================
 @app.route("/monetag/postback")
 def monetag_postback():
-    """
-    Monetag calls this URL after the user completes an ad.
-    Configure this URL in your Monetag dashboard:
-       https://your-app.up.railway.app/monetag/postback?email=USER_EMAIL&secret=YOUR_SECRET
-    Monetag replaces USER_EMAIL with its own macro — see Monetag docs.
-    """
     db = load_db()
     cfg_secret = get_config(db, "monetag_postback_secret") or ""
     provided_secret = request.args.get("secret", "")
@@ -1429,7 +1398,6 @@ def monetag_postback():
     rec["ads_watched_today"] = rec.get("ads_watched_today", 0) + 1
     rec["total_ads_watched"] = rec.get("total_ads_watched", 0) + 1
 
-    # Auto-credit reward if cycle complete
     if rec["ads_in_current_cycle"] >= ads_per:
         rec["time_balance"] = rec.get("time_balance", 0) + get_config(db, "reward_seconds")
         rec["total_time_earned"] = rec.get("total_time_earned", 0) + get_config(db, "reward_seconds")
@@ -1821,7 +1789,6 @@ def admin_panel():
                 p = processes.get((user, name))
                 running = bool(p and p.poll() is None)
                 settings = get_app_settings(db, user, name)
-                # reverse-lookup email
                 email = user if user == ADMIN_INTERNAL_ID else (user_email_from_key(user) or user)
                 entry = {
                     "user": user, "email": email, "name": name, "running": running,
