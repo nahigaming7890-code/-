@@ -1,5 +1,17 @@
 [phases.setup]
-nixPkgs = ["python311", "gcc"]
+nixPkgs = [
+    "python312",
+    "nodejs",
+    "php82",
+    "php82Extensions.mbstring",
+    "php82Extensions.curl",
+    "php82Extensions.openssl",
+    "php82Extensions.json",
+    "php82Extensions.pdo",
+    "php82Extensions.pdo_sqlite",
+    "php82Extensions.sqlite3",
+    "gcc"
+]
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]
