@@ -1,2 +1,7 @@
-[settings]
-python.github_attestations = false
+[tools]
+python = "3.12"
+php = "8.2"
+node = "20"
+
+[env]
+PORT = "8080"
